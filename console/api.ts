@@ -37,7 +37,7 @@ export async function createProject(req: Request): Promise<Response> {
   const id = generateId();
   db.createProject.run(id, user.id, name, target || "cloudflare", "{}");
 
-  return Response.json({ project: { id, name, target: target || "cloudflare" } }, { status: 201 });
+  return Response.json({ project: { id, name, target: target || "cloudflare", state: {}, updated_at: new Date().toISOString() } }, { status: 201 });
 }
 
 /** GET /api/projects/:id */
