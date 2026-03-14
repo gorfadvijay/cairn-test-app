@@ -9,6 +9,7 @@ import { statusCommand } from "./commands/status.ts";
 import { logsCommand } from "./commands/logs.ts";
 import { loginCommand } from "./commands/login.ts";
 import { secretCommand } from "./commands/secret.ts";
+import { branchCreateCommand, branchDestroyCommand, branchListCommand } from "./commands/branch.ts";
 
 const program = new Command();
 
@@ -69,6 +70,28 @@ program
     new Command("list")
       .description("List all secrets")
       .action(() => secretCommand("list")),
+  );
+
+program
+  .command("branch")
+  .description("Manage branch environments")
+  .addCommand(
+    new Command("create")
+      .argument("<name>", "Branch name (e.g. feature-auth)")
+      .option("--target <target>", "Deploy target override")
+      .description("Create an isolated branch environment")
+      .action(branchCreateCommand),
+  )
+  .addCommand(
+    new Command("destroy")
+      .argument("<name>", "Branch name to destroy")
+      .description("Tear down a branch environment")
+      .action(branchDestroyCommand),
+  )
+  .addCommand(
+    new Command("list")
+      .description("List all branch environments")
+      .action(branchListCommand),
   );
 
 program.parse();

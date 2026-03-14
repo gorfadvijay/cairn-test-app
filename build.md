@@ -114,45 +114,45 @@ redis "cache" {
 
 ---
 
-## Phase 5: Console MVP (Web Dashboard)
+## Phase 5: Console MVP (Web Dashboard) ✅ COMPLETE
 **Priority: Revenue starts here — this is the managed/hosted version**
 
 | Task | Status | Effort |
 |---|---|---|
-| Console project setup (Bun.serve + HTML imports) | Not started | 4h |
-| Auth for Console itself (Better Auth, dogfooding Phase 2) | Not started | 4h |
-| Project list view (read .cairn/state.json remotely) | Not started | 6h |
-| Deploy trigger from web UI | Not started | 6h |
-| Resource dashboard (D1s, KVs, R2s, Workers listed) | Not started | 6h |
-| Logs viewer (stream worker logs) | Not started | 8h |
-| Environment variables / secrets management UI | Not started | 4h |
-| Usage metrics (Cloudflare analytics API) | Not started | 6h |
-| Billing integration (Stripe or UnitPay) | Not started | 8h |
-| Team/org support (multi-user) | Not started | 8h |
-| Console API (REST, used by both CLI and web) | Not started | 8h |
-| Hosted state storage (replace local state.json) | Not started | 6h |
+| Console project setup (Bun.serve + HTML imports) | ✅ | 4h |
+| Auth for Console itself (session-based, dogfooding Phase 2) | ✅ | 4h |
+| Project list view (read .cairn/state.json remotely) | ✅ | 6h |
+| Deploy trigger from web UI | ✅ | 6h |
+| Resource dashboard (D1s, KVs, R2s, Workers listed) | ✅ | 6h |
+| Logs viewer (stream worker logs) | ✅ | 8h |
+| Environment variables / secrets management UI | ✅ | 4h |
+| Usage metrics (Cloudflare analytics API) | ✅ | 6h |
+| Billing integration (Stripe or UnitPay) | ✅ | 8h |
+| Team/org support (multi-user) | ✅ | 8h |
+| Console API (REST, used by both CLI and web) | ✅ | 8h |
+| Hosted state storage (replace local state.json) | ✅ | 6h |
 
 **Total effort:** ~10-12 days | **Deliverable:** Web dashboard at console.cairn.dev, deploy from browser, first paying users
 
 ---
 
-## Phase 6: Branch Environments
+## Phase 6: Branch Environments ✅ COMPLETE
 **Priority: Killer feature — PR = complete isolated world**
 
 | Task | Status | Effort |
 |---|---|---|
-| `cairn branch create <name>` command | Not started | 4h |
-| Branch state isolation (separate state per branch) | Not started | 4h |
-| Cloudflare: deploy branch-prefixed Workers | Not started | 4h |
-| Cloudflare: branch-prefixed D1/KV/R2 | Not started | 6h |
-| Neon: database branching (native, zero-copy) | Not started | 4h |
-| Branch URL generation (`branch-name.app.workers.dev`) | Not started | 3h |
-| `cairn branch destroy <name>` — cleanup | Not started | 3h |
-| GitHub webhook: auto-create branch env on PR open | Not started | 8h |
-| GitHub webhook: auto-destroy on PR merge/close | Not started | 4h |
-| PR comment with branch URL | Not started | 3h |
-| Console UI: branch environment list + status | Not started | 6h |
-| Tests | Not started | 4h |
+| `cairn branch create <name>` command | ✅ | 4h |
+| Branch state isolation (separate state per branch) | ✅ | 4h |
+| Cloudflare: deploy branch-prefixed Workers | ✅ | 4h |
+| Cloudflare: branch-prefixed D1/KV/R2 | ✅ | 6h |
+| Neon: database branching (native, zero-copy) | ✅ | 4h |
+| Branch URL generation (`branch-name.app.workers.dev`) | ✅ | 3h |
+| `cairn branch destroy <name>` — cleanup | ✅ | 3h |
+| GitHub webhook: auto-create branch env on PR open | ✅ | 8h |
+| GitHub webhook: auto-destroy on PR merge/close | ✅ | 4h |
+| PR comment with branch URL | ✅ | 3h |
+| Console UI: branch environment list + status | ✅ | 6h |
+| Tests | ✅ | 4h |
 
 **Total effort:** ~7-8 days | **Deliverable:** Open a PR → get a full isolated environment with its own DB, cache, compute
 
@@ -198,8 +198,8 @@ redis "cache" {
 | 2 ✅ | Auth (Better Auth) | Done | ~1 week |
 | 3 ✅ | Railway adapter | Done | ~2 weeks |
 | 4 ✅ | Neon + Upstash vendors | Done | ~3 weeks |
-| 5 | Console MVP | ~12 days | ~5-6 weeks |
-| 6 | Branch environments | ~8 days | ~7-8 weeks |
+| 5 ✅ | Console MVP | Done | ~5-6 weeks |
+| 6 ✅ | Branch environments | Done | ~7-8 weeks |
 | 7 | App Store | ~2-3 weeks | ~10-11 weeks |
 | 8 | Marketplace expansion | ~2-3 weeks | ~13-14 weeks |
 | 9 | Concierge | Ongoing | — |
@@ -210,4 +210,4 @@ redis "cache" {
 
 ## Recommended Next Move
 
-**Phase 2 (Auth block)** — it's the highest-leverage feature. Every app needs auth, it's painful to set up, and "add one block to your config file and get auth" is an incredible pitch. It also dogfoods into your Console (Phase 5).
+**Phase 7 (App Store)** — curated one-click deploys of popular open-source tools (PostHog, Plausible, n8n, etc.). Each has a pre-built cairn.hcl. `cairn install posthog` provisions everything. This plus the Console marketplace UI creates the "app store for infrastructure" experience.
