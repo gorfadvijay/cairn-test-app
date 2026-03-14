@@ -1,0 +1,29 @@
+{
+  "name": "cairn",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "cairn": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "dev": "bun run src/index.ts",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^25.5.0",
+    "@types/prompts": "^2.4.9"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "chokidar": "^5.0.0",
+    "commander": "^14.0.3",
+    "ora": "^9.3.0",
+    "prompts": "^2.4.2",
+    "yaml": "^2.8.2"
+  }
+}
