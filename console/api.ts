@@ -242,7 +242,7 @@ export async function createBranchHandler(req: Request, id: string): Promise<Res
   }
 
   const branchId = generateId();
-  db.createBranch.run(branchId, id, name, "deploying", "{}", "{}", pr_number || null);
+  db.createBranch.run(branchId, id, name, "active", "{}", "{}", pr_number || null);
 
   return Response.json({
     branch: { id: branchId, name, status: "deploying", pr_number: pr_number || null },
