@@ -1,0 +1,20 @@
+{
+  "project": "",
+  "target": "railway",
+  "resources": {
+    "railway:project": {
+      "id": "c71bf6f4-8f44-45a9-8136-9f4a3a083038",
+      "envId": "ebf3f181-c39d-4522-bd53-eb9bad06e9e6"
+    },
+    "railway:pg:main": {
+      "serviceId": "077ff5de-7557-4d37-affe-92906b1ced07",
+      "name": "postgres-main"
+    },
+    "railway:service:api": {
+      "serviceId": "036727be-298d-4f1b-9dbb-636bc2f08df7",
+      "url": "https://api-production-14ad.up.railway.app",
+      "deploymentId": "9ffdb7f9-f953-4aaa-9394-685978545011"
+    }
+  },
+  "lastDeployedAt": "2026-03-14T06:35:10.362Z"
+}
