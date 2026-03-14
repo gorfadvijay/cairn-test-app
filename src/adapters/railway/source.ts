@@ -24,7 +24,7 @@ interface DeployResponse {
  * Creates and pushes to GitHub automatically if needed.
  * Returns { repo: "owner/repo", branch: "main" }
  */
-export function ensureGitHubRepo(projectName: string): { repo: string; branch: string } {
+export function ensureGitHubRepo(projectName: string): { repo: string; branch: string; rootDir: string | null } {
   const run = (cmd: string) =>
     execSync(cmd, { stdio: "pipe", cwd: process.cwd() }).toString().trim();
 
@@ -97,7 +97,19 @@ export function ensureGitHubRepo(projectName: string): { repo: string; branch: s
     // May fail if already up to date
   }
 
-  return { repo, branch };
+  // 6. Detect subdirectory offset (if cwd is inside a larger repo)
+  let rootDir: string | null = null;
+  try {
+    const gitRoot = run("git rev-parse --show-toplevel");
+    const cwd = process.cwd();
+    if (cwd !== gitRoot) {
+      rootDir = cwd.replace(gitRoot + "/", "");
+    }
+  } catch {
+    // Not in a git repo subdirectory
+  }
+
+  return { repo, branch, rootDir };
 }
 
 /**

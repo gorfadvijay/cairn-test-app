@@ -190,8 +190,8 @@ export async function deployToRailway(config: CairnConfig): Promise<void> {
 
   // 5. Deploy application services via GitHub repo
   // Auto-handles: git init, GitHub repo creation, commit, push
-  const { repo, branch } = ensureGitHubRepo(config.project.name);
-  console.log(`  ✓ Source ready: ${repo} (${branch})`);
+  const { repo, branch, rootDir } = ensureGitHubRepo(config.project.name);
+  console.log(`  ✓ Source ready: ${repo} (${branch}${rootDir ? `, dir: ${rootDir}` : ""})`);
 
   for (const service of config.services) {
     if (!service.expose) continue;
@@ -210,6 +210,17 @@ export async function deployToRailway(config: CairnConfig): Promise<void> {
       console.log(`  Deploying from ${repo} (${branch})...`);
       const deployment = await deployFromRepo(projectId, envId!, repo, branch);
       const svcId = deployment.serviceId!;
+
+      // Set rootDirectory if deploying from a subdirectory
+      if (rootDir) {
+        const { railwayGql } = await import("./api.ts");
+        await railwayGql(
+          `mutation($serviceId: String!, $envId: String!, $input: ServiceInstanceUpdateInput!) {
+            serviceInstanceUpdate(serviceId: $serviceId, environmentId: $envId, input: $input)
+          }`,
+          { serviceId: svcId, envId: envId!, input: { rootDirectory: rootDir } },
+        );
+      }
 
       // Wire environment variables from databases
       const firstPg = config.postgres[0];
