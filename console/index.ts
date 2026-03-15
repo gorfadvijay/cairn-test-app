@@ -29,6 +29,7 @@ import { getMarketplace, getMarketplaceApp, installAddon, listAddons, removeAddo
 import { getBilling, createCheckout, handleWebhook } from "./billing.ts";
 
 const PORT = process.env.PORT || 3100;
+const isDev = process.env.NODE_ENV !== "production";
 
 /** Extract path params from URL pattern matching */
 function matchRoute(
@@ -155,10 +156,7 @@ const server = Bun.serve({
 
     return new Response("Not Found", { status: 404 });
   },
-  development: process.env.NODE_ENV !== "production" ? {
-    hmr: true,
-    console: true,
-  } : false,
+  ...(isDev ? { development: { hmr: true, console: true } } : {}),
 });
 
 console.log(`⛰  Cairn Console running at http://localhost:${server.port}`);
