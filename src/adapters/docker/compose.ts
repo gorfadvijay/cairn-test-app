@@ -1,14 +1,58 @@
 import { stringify } from "yaml";
+import { execSync } from "child_process";
 import type { CairnConfig } from "../../parser/types.ts";
 
-/** Base ports for each service type. Offset by index for multiple instances. */
-const BASE_PORTS = {
-  postgres: 5432,
-  redis: 6379,
-  minio: 9000,
-  minioConsole: 9001,
-  auth: 4000,
-};
+/** Check if a port is already in use by a non-Docker process */
+function isPortTaken(port: number): boolean {
+  try {
+    const result = execSync(`lsof -i :${port} -sTCP:LISTEN`, {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    // Check if any non-Docker process is using it
+    const lines = result.trim().split("\n").slice(1); // skip header
+    return lines.some((line) => !line.includes("com.docke") && !line.includes("docker"));
+  } catch {
+    return false; // lsof returns non-zero if nothing is listening
+  }
+}
+
+/** Find a free port starting from the desired one */
+function findFreePort(desired: number): number {
+  let port = desired;
+  while (isPortTaken(port)) {
+    console.log(`  ⚠ Port ${port} in use, trying ${port + 1}...`);
+    port++;
+  }
+  return port;
+}
+
+/** Resolved ports for this session — computed once and reused */
+let resolvedPorts: {
+  postgres: number;
+  redis: number;
+  minio: number;
+  minioConsole: number;
+  auth: number;
+} | null = null;
+
+export function getBasePorts() {
+  if (!resolvedPorts) {
+    resolvedPorts = {
+      postgres: findFreePort(5432),
+      redis: findFreePort(6379),
+      minio: findFreePort(9000),
+      minioConsole: findFreePort(9001),
+      auth: 4000,
+    };
+  }
+  return resolvedPorts;
+}
+
+/** Reset resolved ports — used in tests */
+export function resetPorts() {
+  resolvedPorts = null;
+}
 
 /**
  * Generates docker-compose.yml from CairnConfig
@@ -22,7 +66,7 @@ export function generateDockerCompose(config: CairnConfig): string {
   // Postgres — each instance gets an offset port
   config.postgres.forEach((pg, idx) => {
     const serviceName = `cairn-pg-${pg.name}`;
-    const hostPort = BASE_PORTS.postgres + idx;
+    const hostPort = getBasePorts().postgres + idx;
     services[serviceName] = {
       image: `postgres:${pg.version}`,
       ports: [`${hostPort}:5432`],
@@ -45,7 +89,7 @@ export function generateDockerCompose(config: CairnConfig): string {
   // Redis — each instance gets an offset port
   config.redis.forEach((rd, idx) => {
     const serviceName = `cairn-rd-${rd.name}`;
-    const hostPort = BASE_PORTS.redis + idx;
+    const hostPort = getBasePorts().redis + idx;
     services[serviceName] = {
       image: `redis:${rd.version}-alpine`,
       ports: [`${hostPort}:6379`],
@@ -61,8 +105,8 @@ export function generateDockerCompose(config: CairnConfig): string {
   // MinIO (S3-compatible storage) — each instance gets offset ports
   config.storage.forEach((st, idx) => {
     const serviceName = `cairn-s3-${st.name}`;
-    const apiPort = BASE_PORTS.minio + idx * 2;
-    const consolePort = BASE_PORTS.minioConsole + idx * 2;
+    const apiPort = getBasePorts().minio + idx * 2;
+    const consolePort = getBasePorts().minioConsole + idx * 2;
     services[serviceName] = {
       image: "minio/minio:latest",
       command: `server /data --console-address ':9001'`,
@@ -91,7 +135,7 @@ export function generateDevEnvVars(
   const env: Record<string, string> = {};
 
   config.postgres.forEach((pg, idx) => {
-    const port = BASE_PORTS.postgres + idx;
+    const port = getBasePorts().postgres + idx;
     const url = `postgres://cairn:cairn@localhost:${port}/${pg.name}`;
     env[`POSTGRES_${pg.name.toUpperCase()}_URL`] = url;
     // First postgres also gets the generic DATABASE_URL
@@ -99,14 +143,14 @@ export function generateDevEnvVars(
   });
 
   config.redis.forEach((rd, idx) => {
-    const port = BASE_PORTS.redis + idx;
+    const port = getBasePorts().redis + idx;
     const url = `redis://localhost:${port}`;
     env[`REDIS_${rd.name.toUpperCase()}_URL`] = url;
     if (idx === 0) env["REDIS_URL"] = url;
   });
 
   config.storage.forEach((st, idx) => {
-    const port = BASE_PORTS.minio + idx * 2;
+    const port = getBasePorts().minio + idx * 2;
     env[`S3_${st.name.toUpperCase()}_ENDPOINT`] = `http://localhost:${port}`;
     env[`S3_${st.name.toUpperCase()}_ACCESS_KEY`] = "cairn";
     env[`S3_${st.name.toUpperCase()}_SECRET_KEY`] = "cairnpass123";
@@ -122,7 +166,7 @@ export function generateDevEnvVars(
 
   // Auth — auto-inject AUTH_URL for each auth instance
   config.auth.forEach((auth, idx) => {
-    const port = BASE_PORTS.auth + idx;
+    const port = getBasePorts().auth + idx;
     env[`AUTH_${auth.name.toUpperCase()}_URL`] = `http://localhost:${port}`;
     if (idx === 0) env["AUTH_URL"] = `http://localhost:${port}`;
   });

@@ -25,6 +25,7 @@ import {
   addTeamMemberHandler,
 } from "./api.ts";
 import { getMetrics } from "./metrics.ts";
+import { getMarketplace, getMarketplaceApp, installAddon, listAddons, removeAddon } from "./marketplace.ts";
 import { getBilling, createCheckout, handleWebhook } from "./billing.ts";
 
 const PORT = process.env.PORT || 3100;
@@ -59,6 +60,7 @@ const server = Bun.serve({
     "/projects": index,
     "/projects/*": index,
     "/billing": index,
+    "/marketplace": index,
   },
   async fetch(req) {
     const url = new URL(req.url);
@@ -129,6 +131,22 @@ const server = Bun.serve({
     // Metrics
     params = matchRoute(pathname, "/api/projects/:id/metrics");
     if (params && method === "GET") return getMetrics(req, params.id!);
+
+    // Marketplace
+    if (pathname === "/api/marketplace" && method === "GET") return getMarketplace(req);
+
+    params = matchRoute(pathname, "/api/marketplace/:id");
+    if (params && method === "GET") return getMarketplaceApp(req, params.id!);
+
+    // Addons (installed apps per project)
+    params = matchRoute(pathname, "/api/projects/:id/addons");
+    if (params) {
+      if (method === "GET") return listAddons(req, params.id!);
+      if (method === "POST") return installAddon(req, params.id!);
+    }
+
+    params = matchRoute(pathname, "/api/projects/:id/addons/:appId");
+    if (params && method === "DELETE") return removeAddon(req, params.id!, params.appId!);
 
     // Billing
     if (pathname === "/api/billing" && method === "GET") return getBilling(req);

@@ -1,5 +1,5 @@
-import { test, expect, describe } from "bun:test";
-import { generateDockerCompose, generateDevEnvVars } from "./compose.ts";
+import { test, expect, describe, beforeEach } from "bun:test";
+import { generateDockerCompose, generateDevEnvVars, getBasePorts, resetPorts } from "./compose.ts";
 import { parse } from "yaml";
 import type { CairnConfig } from "../../parser/types.ts";
 
@@ -12,21 +12,30 @@ function makeConfig(overrides: Partial<CairnConfig> = {}): CairnConfig {
     storage: [],
     secrets: [],
     auth: [],
+    jobs: [],
+    email: [],
+    analytics: [],
+    sqlite: [],
+    monitoring: [],
+    logging: [],
     ...overrides,
   };
 }
 
 describe("generateDockerCompose", () => {
+  beforeEach(() => resetPorts());
+
   test("generates postgres service", () => {
     const config = makeConfig({
       postgres: [{ name: "main", version: "16" }],
     });
     const yml = generateDockerCompose(config);
     const composed = parse(yml);
+    const pgPort = getBasePorts().postgres;
 
     expect(composed.services["cairn-pg-main"]).toBeDefined();
     expect(composed.services["cairn-pg-main"].image).toBe("postgres:16");
-    expect(composed.services["cairn-pg-main"].ports).toContain("5432:5432");
+    expect(composed.services["cairn-pg-main"].ports).toContain(`${pgPort}:5432`);
   });
 
   test("generates redis service", () => {
@@ -35,10 +44,11 @@ describe("generateDockerCompose", () => {
     });
     const yml = generateDockerCompose(config);
     const composed = parse(yml);
+    const rdPort = getBasePorts().redis;
 
     expect(composed.services["cairn-rd-cache"]).toBeDefined();
     expect(composed.services["cairn-rd-cache"].image).toBe("redis:7-alpine");
-    expect(composed.services["cairn-rd-cache"].ports).toContain("6379:6379");
+    expect(composed.services["cairn-rd-cache"].ports).toContain(`${rdPort}:6379`);
   });
 
   test("generates minio service for storage", () => {
@@ -63,10 +73,11 @@ describe("generateDockerCompose", () => {
     });
     const yml = generateDockerCompose(config);
     const composed = parse(yml);
+    const pgPort = getBasePorts().postgres;
 
-    expect(composed.services["cairn-pg-main"].ports).toContain("5432:5432");
+    expect(composed.services["cairn-pg-main"].ports).toContain(`${pgPort}:5432`);
     expect(composed.services["cairn-pg-analytics"].ports).toContain(
-      "5433:5432",
+      `${pgPort + 1}:5432`,
     );
   });
 
@@ -79,10 +90,11 @@ describe("generateDockerCompose", () => {
     });
     const yml = generateDockerCompose(config);
     const composed = parse(yml);
+    const rdPort = getBasePorts().redis;
 
-    expect(composed.services["cairn-rd-cache"].ports).toContain("6379:6379");
+    expect(composed.services["cairn-rd-cache"].ports).toContain(`${rdPort}:6379`);
     expect(composed.services["cairn-rd-sessions"].ports).toContain(
-      "6380:6379",
+      `${rdPort + 1}:6379`,
     );
   });
 
@@ -108,15 +120,18 @@ describe("generateDockerCompose", () => {
 });
 
 describe("generateDevEnvVars", () => {
+  beforeEach(() => resetPorts());
+
   test("generates DATABASE_URL for first postgres", () => {
     const config = makeConfig({
       postgres: [{ name: "main", version: "16" }],
     });
     const env = generateDevEnvVars(config);
+    const pgPort = getBasePorts().postgres;
 
-    expect(env.DATABASE_URL).toBe("postgres://cairn:cairn@localhost:5432/main");
+    expect(env.DATABASE_URL).toBe(`postgres://cairn:cairn@localhost:${pgPort}/main`);
     expect(env.POSTGRES_MAIN_URL).toBe(
-      "postgres://cairn:cairn@localhost:5432/main",
+      `postgres://cairn:cairn@localhost:${pgPort}/main`,
     );
   });
 
@@ -128,10 +143,11 @@ describe("generateDevEnvVars", () => {
       ],
     });
     const env = generateDevEnvVars(config);
+    const pgPort = getBasePorts().postgres;
 
-    expect(env.DATABASE_URL).toBe("postgres://cairn:cairn@localhost:5432/main");
+    expect(env.DATABASE_URL).toBe(`postgres://cairn:cairn@localhost:${pgPort}/main`);
     expect(env.POSTGRES_ANALYTICS_URL).toBe(
-      "postgres://cairn:cairn@localhost:5433/analytics",
+      `postgres://cairn:cairn@localhost:${pgPort + 1}/analytics`,
     );
   });
 
@@ -140,9 +156,10 @@ describe("generateDevEnvVars", () => {
       redis: [{ name: "cache", version: "7" }],
     });
     const env = generateDevEnvVars(config);
+    const rdPort = getBasePorts().redis;
 
-    expect(env.REDIS_URL).toBe("redis://localhost:6379");
-    expect(env.REDIS_CACHE_URL).toBe("redis://localhost:6379");
+    expect(env.REDIS_URL).toBe(`redis://localhost:${rdPort}`);
+    expect(env.REDIS_CACHE_URL).toBe(`redis://localhost:${rdPort}`);
   });
 
   test("generates S3 vars for storage", () => {
@@ -151,7 +168,7 @@ describe("generateDevEnvVars", () => {
     });
     const env = generateDevEnvVars(config);
 
-    expect(env.S3_ENDPOINT).toBe("http://localhost:9000");
+    expect(env.S3_ENDPOINT).toContain("http://localhost:");
     expect(env.S3_BUCKET).toBe("uploads");
     expect(env.S3_ACCESS_KEY).toBe("cairn");
   });

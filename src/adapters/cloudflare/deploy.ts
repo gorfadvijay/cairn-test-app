@@ -28,6 +28,7 @@ import {
   setCredentials as setUpstashCredentials,
 } from "../upstash/api.ts";
 import { createUpstashRedis, getUpstashRedisUrl } from "../upstash/provisioner.ts";
+import { provisionVendorResources } from "../vendor-provisioning.ts";
 
 /**
  * Bundle a user's entrypoint into a single ESM file for Workers
@@ -356,9 +357,34 @@ export async function deployToCloudflare(config: CairnConfig): Promise<void> {
     }
   }
 
-  // 5. Run build step if defined, then deploy Workers
+  // 5. Provision vendor resources (Trigger.dev, Resend, Sentry, etc.)
+  const hasVendorBlocks =
+    config.jobs.length > 0 ||
+    config.email.length > 0 ||
+    config.analytics.length > 0 ||
+    config.monitoring.length > 0 ||
+    config.logging.length > 0;
+
+  if (hasVendorBlocks) {
+    console.log(`\nProvisioning vendor resources...`);
+    const vendorEnv = await provisionVendorResources(config);
+
+    // Inject vendor env vars as plain text bindings
+    for (const [key, value] of Object.entries(vendorEnv)) {
+      bindings.push({ type: "plain_text", name: key, text: value });
+    }
+  }
+
+  // 6. Run build step if defined, then deploy Workers
   for (const service of config.services) {
     if (!service.expose) continue;
+
+    // Image-based services (from App Store) can't deploy to Cloudflare Workers
+    if (service.image) {
+      console.log(`  ⚠ Skipping ${service.name}: Docker image-based services require Railway or container targets`);
+      console.log(`    Image: ${service.image} — use \`cairn deploy --target railway\` instead`);
+      continue;
+    }
 
     // Run build command (e.g. "bun install") before bundling
     if (service.build) {

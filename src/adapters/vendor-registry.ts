@@ -58,5 +58,9 @@ export function resolveRedisVendor(
  * Check if a vendor requires separate login credentials
  */
 export function vendorRequiresLogin(vendor: string): boolean {
-  return ["neon", "upstash"].includes(vendor);
+  return [
+    "neon", "upstash", "trigger", "resend", "clerk",
+    "inngest", "sentry", "axiom", "tinybird", "turso",
+    "vercel", "supabase", "planetscale",
+  ].includes(vendor);
 }

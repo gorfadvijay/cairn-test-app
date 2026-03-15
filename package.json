@@ -1,14 +1,44 @@
 {
-  "name": "cairn",
-  "version": "0.1.0",
+  "name": "cairn-cli",
+  "version": "0.1.2",
+  "description": "The infrastructure app store. One file, every service, any cloud, one command.",
   "type": "module",
   "bin": {
-    "cairn": "./dist/index.js"
+    "cairn": "dist/cli.js"
   },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target node",
+    "build": "bun run scripts/build.ts",
     "dev": "bun run src/index.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "prepublishOnly": "bun run build"
+  },
+  "keywords": [
+    "infrastructure",
+    "deployment",
+    "cloudflare",
+    "railway",
+    "paas",
+    "devops",
+    "cli",
+    "hcl",
+    "ai-agents",
+    "developer-tools"
+  ],
+  "author": "Cairn Labs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cairn-dev/cairn.git"
+  },
+  "homepage": "https://cairn.dev",
+  "engines": {
+    "bun": ">=1.0.0"
   },
   "devDependencies": {
     "@types/bun": "latest",

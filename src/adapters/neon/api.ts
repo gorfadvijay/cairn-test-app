@@ -8,6 +8,7 @@ const BASE_URL = "https://console.neon.tech/api/v2";
 
 interface NeonCredentials {
   apiKey: string;
+  orgId?: string;
 }
 
 let credentials: NeonCredentials | null = null;
@@ -36,6 +37,9 @@ export async function neonApi<T = unknown>(
     Authorization: `Bearer ${creds.apiKey}`,
     "Content-Type": "application/json",
   };
+  if (creds.orgId) {
+    headers["Neon-Organization"] = creds.orgId;
+  }
 
   const res = await fetch(`${BASE_URL}${path}`, {
     method,

@@ -22,6 +22,7 @@ import { setCredentials as setNeonCredentials } from "../neon/api.ts";
 import { createNeonProject } from "../neon/provisioner.ts";
 import { setCredentials as setUpstashCredentials } from "../upstash/api.ts";
 import { createUpstashRedis, getUpstashRedisUrl } from "../upstash/provisioner.ts";
+import { provisionVendorResources } from "../vendor-provisioning.ts";
 
 export async function deployToRailway(config: CairnConfig): Promise<void> {
   const state = loadState();
@@ -188,10 +189,29 @@ export async function deployToRailway(config: CairnConfig): Promise<void> {
     }
   }
 
-  // 5. Deploy application services via GitHub repo
-  // Auto-handles: git init, GitHub repo creation, commit, push
-  const { repo, branch, rootDir } = ensureGitHubRepo(config.project.name);
-  console.log(`  ✓ Source ready: ${repo} (${branch}${rootDir ? `, dir: ${rootDir}` : ""})`);
+  // 5. Provision vendor resources (Trigger.dev, Resend, Sentry, etc.)
+  const hasVendorBlocks =
+    config.jobs.length > 0 ||
+    config.email.length > 0 ||
+    config.analytics.length > 0 ||
+    config.monitoring.length > 0 ||
+    config.logging.length > 0;
+
+  let vendorEnv: Record<string, string> = {};
+  if (hasVendorBlocks) {
+    console.log(`\nProvisioning vendor resources...`);
+    vendorEnv = await provisionVendorResources(config);
+  }
+
+  // 6. Deploy application services
+  // Image-based services deploy directly from Docker images
+  // Source-based services deploy via GitHub repo
+  let gitSource: { repo: string; branch: string; rootDir: string } | null = null;
+  const hasSourceServices = config.services.some((s) => s.expose && !s.image);
+  if (hasSourceServices) {
+    gitSource = ensureGitHubRepo(config.project.name);
+    console.log(`  ✓ Source ready: ${gitSource.repo} (${gitSource.branch}${gitSource.rootDir ? `, dir: ${gitSource.rootDir}` : ""})`);
+  }
 
   for (const service of config.services) {
     if (!service.expose) continue;
@@ -200,26 +220,54 @@ export async function deployToRailway(config: CairnConfig): Promise<void> {
     if (!state.resources[resourceKey]) {
       console.log(`Creating service: ${service.name}...`);
 
-      // Run build step if defined
-      if (service.build) {
-        console.log(`  Running build: ${service.build}...`);
-        execSync(service.build, { stdio: "inherit", cwd: process.cwd() });
-      }
+      let svcId: string;
 
-      // Deploy from GitHub repo (creates service + triggers build)
-      console.log(`  Deploying from ${repo} (${branch})...`);
-      const deployment = await deployFromRepo(projectId, envId!, repo, branch);
-      const svcId = deployment.serviceId!;
-
-      // Set rootDirectory if deploying from a subdirectory
-      if (rootDir) {
+      if (service.image) {
+        // Deploy from Docker image (App Store templates)
+        console.log(`  Deploying image: ${service.image}...`);
         const { railwayGql } = await import("./api.ts");
-        await railwayGql(
-          `mutation($serviceId: String!, $envId: String!, $input: ServiceInstanceUpdateInput!) {
-            serviceInstanceUpdate(serviceId: $serviceId, environmentId: $envId, input: $input)
-          }`,
-          { serviceId: svcId, envId: envId!, input: { rootDirectory: rootDir } },
-        );
+        const result = await railwayGql<{
+          serviceCreate: { id: string; name: string };
+        }>(`
+          mutation($input: ServiceCreateInput!) {
+            serviceCreate(input: $input) { id name }
+          }
+        `, {
+          input: {
+            projectId,
+            name: service.name,
+            source: { image: service.image },
+          },
+        });
+        svcId = result.serviceCreate.id;
+
+        // Set PORT if specified
+        if (service.port) {
+          await setServiceVariable(projectId, envId!, svcId, "PORT", String(service.port));
+        }
+      } else {
+        // Run build step if defined
+        if (service.build) {
+          console.log(`  Running build: ${service.build}...`);
+          execSync(service.build, { stdio: "inherit", cwd: process.cwd() });
+        }
+
+        // Deploy from GitHub repo (creates service + triggers build)
+        const { repo, branch, rootDir } = gitSource!;
+        console.log(`  Deploying from ${repo} (${branch})...`);
+        const deployment = await deployFromRepo(projectId, envId!, repo, branch);
+        svcId = deployment.serviceId!;
+
+        // Set rootDirectory if deploying from a subdirectory
+        if (rootDir) {
+          const { railwayGql } = await import("./api.ts");
+          await railwayGql(
+            `mutation($serviceId: String!, $envId: String!, $input: ServiceInstanceUpdateInput!) {
+              serviceInstanceUpdate(serviceId: $serviceId, environmentId: $envId, input: $input)
+            }`,
+            { serviceId: svcId, envId: envId!, input: { rootDirectory: rootDir } },
+          );
+        }
       }
 
       // Wire environment variables from databases
@@ -268,16 +316,25 @@ export async function deployToRailway(config: CairnConfig): Promise<void> {
         }
       }
 
+      // Wire custom env vars from cairn.hcl
+      if (service.env) {
+        for (const [key, value] of Object.entries(service.env)) {
+          await setServiceVariable(projectId, envId!, svcId, key, String(value));
+        }
+      }
+
+      // Wire vendor env vars (Trigger.dev, Resend, Sentry, etc.)
+      for (const [key, value] of Object.entries(vendorEnv)) {
+        await setServiceVariable(projectId, envId!, svcId, key, value);
+      }
+
       // Generate a domain
       const domain = await createServiceDomain(svcId, envId!);
       const url = `https://${domain}`;
 
-      console.log(`  ✓ Deployment triggered (${deployment.deploymentId?.slice(0, 8) || "building"})`);
-
       state.resources[resourceKey] = {
         serviceId: svcId,
         url,
-        deploymentId: deployment.deploymentId,
       };
       saveState(state);
       console.log(`  ✓ Deployed: ${url}`);
@@ -286,11 +343,12 @@ export async function deployToRailway(config: CairnConfig): Promise<void> {
       const existing = state.resources[resourceKey]!;
       if (existing.serviceId) {
         console.log(`  Redeploying ${service.name}...`);
-        try {
-          // Push any new changes before redeploying
-          execSync(`git push origin ${branch}`, { stdio: "pipe", cwd: process.cwd() });
-        } catch {
-          // Already up to date
+        if (!service.image && gitSource) {
+          try {
+            execSync(`git push origin ${gitSource.branch}`, { stdio: "pipe", cwd: process.cwd() });
+          } catch {
+            // Already up to date
+          }
         }
         const deployment = await redeployService(existing.serviceId, envId!);
         existing.deploymentId = deployment.deploymentId;

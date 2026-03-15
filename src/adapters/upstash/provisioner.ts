@@ -30,7 +30,9 @@ export async function createUpstashRedis(
     rest_token: string;
   }>("POST", "/redis/database", {
     name,
-    region: region || "us-east-1",
+    primary_region: region || "us-east-1",
+    read_regions: [],
+    platform: "aws",
     tls: true,
   });
 

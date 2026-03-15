@@ -158,14 +158,16 @@ redis "cache" {
 
 ---
 
-## Phase 7: App Store (One-Click OSS Deploys)
+## Phase 7: App Store (One-Click OSS Deploys) ✅ COMPLETE
 **Effort: ~2-3 weeks**
 
-- Curated catalog of open-source tools (PostHog, Plausible, n8n, etc.)
-- Each has a pre-built `cairn.hcl`
-- `cairn install posthog` → provisions everything
-- Console marketplace UI
-- Template versioning + updates
+| Task | Status | Details |
+|---|---|---|
+| Curated catalog of open-source tools | ✅ | 6 apps: PostHog, Plausible, n8n, Gitea, Uptime Kuma, Ghost |
+| Each has a pre-built cairn.hcl | ✅ | Template registry with toHcl() generation |
+| `cairn install posthog` → provisions everything | ✅ | Interactive CLI with project setup + secrets guidance |
+| Console marketplace UI | ✅ | App Store page with search, categories, app cards |
+| Template versioning + updates | ✅ | `cairn update` command + .cairn/installed.json tracking |
 
 ---
 
@@ -200,7 +202,7 @@ redis "cache" {
 | 4 ✅ | Neon + Upstash vendors | Done | ~3 weeks |
 | 5 ✅ | Console MVP | Done | ~5-6 weeks |
 | 6 ✅ | Branch environments | Done | ~7-8 weeks |
-| 7 | App Store | ~2-3 weeks | ~10-11 weeks |
+| 7 ✅ | App Store | Done | ~10-11 weeks |
 | 8 | Marketplace expansion | ~2-3 weeks | ~13-14 weeks |
 | 9 | Concierge | Ongoing | — |
 
@@ -210,4 +212,4 @@ redis "cache" {
 
 ## Recommended Next Move
 
-**Phase 7 (App Store)** — curated one-click deploys of popular open-source tools (PostHog, Plausible, n8n, etc.). Each has a pre-built cairn.hcl. `cairn install posthog` provisions everything. This plus the Console marketplace UI creates the "app store for infrastructure" experience.
+**Phase 8 (Marketplace Expansion)** — expand to 10-15 vendors, add vendor SDK for third-party contributions, vendor onboarding flow, revenue share/referral tracking, and categorized marketplace.

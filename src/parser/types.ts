@@ -11,6 +11,12 @@ export interface CairnConfig {
   storage: StorageConfig[];
   secrets: SecretConfig[];
   auth: AuthConfig[];
+  jobs: JobsConfig[];
+  email: EmailConfig[];
+  analytics: AnalyticsConfig[];
+  sqlite: SqliteConfig[];
+  monitoring: MonitoringConfig[];
+  logging: LoggingConfig[];
 }
 
 export interface AuthConfig {
@@ -23,6 +29,8 @@ export interface ServiceConfig {
   name: string;
   build?: string;
   command: string;
+  image?: string;
+  port?: number;
   expose?: boolean;
   dev?: {
     command: string;
@@ -48,4 +56,34 @@ export interface StorageConfig {
 
 export interface SecretConfig {
   name: string;
+}
+
+export interface JobsConfig {
+  name: string;
+  vendor?: "trigger" | "inngest";
+}
+
+export interface EmailConfig {
+  name: string;
+  vendor?: "resend";
+}
+
+export interface AnalyticsConfig {
+  name: string;
+  vendor?: "tinybird";
+}
+
+export interface SqliteConfig {
+  name: string;
+  vendor?: "turso" | "cloudflare";
+}
+
+export interface MonitoringConfig {
+  name: string;
+  vendor?: "sentry";
+}
+
+export interface LoggingConfig {
+  name: string;
+  vendor?: "axiom";
 }

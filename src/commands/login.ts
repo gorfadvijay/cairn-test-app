@@ -14,11 +14,14 @@ import {
   setCredentials as setUpstashCredentials,
   verifyToken as verifyUpstashToken,
 } from "../adapters/upstash/api.ts";
+import { getVendor, listVendors } from "../adapters/vendor-sdk.ts";
 
 export async function loginCommand(vendor: string) {
+  // Handle aliases
+  if (vendor === "cf") vendor = "cloudflare";
+
   switch (vendor) {
     case "cloudflare":
-    case "cf":
       await loginCloudflare();
       break;
     case "railway":
@@ -31,8 +34,54 @@ export async function loginCommand(vendor: string) {
       await loginUpstash();
       break;
     default:
-      console.log(chalk.red(`Unknown vendor: ${vendor}`));
-      console.log(`Available: cloudflare, railway, neon, upstash`);
+      // Try SDK-based vendor login
+      await loginWithSdk(vendor);
+  }
+}
+
+/** Generic SDK-based login for any registered vendor */
+async function loginWithSdk(vendorId: string) {
+  const vendor = getVendor(vendorId);
+  if (!vendor) {
+    console.log(chalk.red(`Unknown vendor: ${vendorId}`));
+    const all = listVendors().map((v) => v.id).join(", ");
+    console.log(`Available: ${all}`);
+    return;
+  }
+
+  console.log(chalk.bold(`\n${vendor.name} Login\n`));
+  console.log(chalk.dim(`Get your credentials at: ${vendor.credentialsUrl}\n`));
+
+  const questions = vendor.loginFields.map((f) => ({
+    type: f.type === "password" ? ("password" as const) : ("text" as const),
+    name: f.name,
+    message: f.message,
+  }));
+
+  const response = await prompts(questions);
+
+  // Check all fields provided
+  for (const field of vendor.loginFields) {
+    if (!response[field.name]) {
+      console.log(chalk.red("Cancelled."));
+      return;
+    }
+  }
+
+  // Verify
+  console.log(chalk.dim("\n  Verifying..."));
+  try {
+    const result = await vendor.verify(response);
+    if (result.ok) {
+      saveVendorCredentials(vendor.id, response);
+      console.log(chalk.green(`\n✓ Connected to ${vendor.name}`) +
+        (result.detail ? chalk.dim(` (${result.detail})`) : ""));
+      console.log(chalk.green(`✓ Credentials saved to ~/.cairn/credentials/${vendor.id}.json`));
+    } else {
+      console.log(chalk.red(`\n✗ Failed to connect to ${vendor.name}. Check your credentials.`));
+    }
+  } catch {
+    console.log(chalk.red(`\n✗ Failed to connect to ${vendor.name}. Check your credentials.`));
   }
 }
 

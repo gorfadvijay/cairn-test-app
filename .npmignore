@@ -1,0 +1,36 @@
+# Source code (dist is published)
+src/
+console/
+scripts/
+
+# Tests
+**/*.test.ts
+**/*.test.js
+
+# Config
+tsconfig.json
+bun.lock
+.gitignore
+
+# Development files
+.cairn/
+.env*
+*.md
+!README.md
+
+# Build artifacts
+*.tgz
+coverage/
+
+# IDE
+.idea/
+.vscode/
+.DS_Store
+
+# Planning docs
+actual-flow.md
+phase8-plan.md
+result-tested.md
+build.md
+test-full-flow.sh
+trigger.config.ts

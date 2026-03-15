@@ -172,6 +172,7 @@ function Layout({
         <div className="sidebar-logo">&#9968; Cairn</div>
         <nav className="sidebar-nav">
           <a className="sidebar-link" onClick={() => navigate("/projects")}>Projects</a>
+          <a className="sidebar-link" onClick={() => navigate("/marketplace")}>App Store</a>
         </nav>
         <div className="sidebar-user">
           <div>{user.name}</div>
@@ -580,6 +581,114 @@ function LogsTab() {
   );
 }
 
+// ─── Marketplace ─────────────────────────────────────────
+
+interface MarketplaceApp {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  image: string;
+  version: string;
+  website: string;
+  license: string;
+  requires: { postgres?: boolean; redis?: boolean; storage?: boolean };
+  port: number;
+}
+
+function MarketplacePage({ navigate }: { navigate: (p: string) => void }) {
+  const [apps, setApps] = useState<MarketplaceApp[]>([]);
+  const [categories, setCategories] = useState<Record<string, MarketplaceApp[]>>({});
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    api("/marketplace").then((d) => {
+      setApps(d.apps || []);
+      setCategories(d.categories || {});
+    });
+  }, []);
+
+  const filtered = search
+    ? apps.filter(
+        (a) =>
+          a.name.toLowerCase().includes(search.toLowerCase()) ||
+          a.description.toLowerCase().includes(search.toLowerCase()),
+      )
+    : apps;
+
+  const grouped: Record<string, MarketplaceApp[]> = {};
+  for (const app of filtered) {
+    if (!grouped[app.category]) grouped[app.category] = [];
+    grouped[app.category]!.push(app);
+  }
+
+  return (
+    <>
+      <div className="page-header">
+        <div>
+          <h1>App Store</h1>
+          <p style={{ color: "var(--text-muted)", marginTop: 4, fontSize: 14 }}>
+            One-click deploy of open-source tools
+          </p>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <input
+            placeholder="Search apps..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ maxWidth: 400 }}
+          />
+        </div>
+      </div>
+
+      {Object.entries(grouped).map(([category, categoryApps]) => (
+        <div key={category} style={{ marginBottom: 24 }}>
+          <h3 style={{ textTransform: "uppercase", fontSize: 12, letterSpacing: 1, color: "var(--text-muted)", marginBottom: 12 }}>
+            {category}
+          </h3>
+          <div className="resource-grid">
+            {categoryApps.map((app) => {
+              const reqs: string[] = [];
+              if (app.requires.postgres) reqs.push("Postgres");
+              if (app.requires.redis) reqs.push("Redis");
+              if (app.requires.storage) reqs.push("Storage");
+
+              return (
+                <div className="resource-card" key={app.id} style={{ cursor: "pointer" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                    <div className="resource-name" style={{ fontSize: 16 }}>{app.name}</div>
+                    <span className="badge badge-muted" style={{ fontSize: 10 }}>v{app.version}</span>
+                  </div>
+                  <div style={{ color: "var(--text-muted)", fontSize: 13, margin: "8px 0", lineHeight: 1.4 }}>
+                    {app.description}
+                  </div>
+                  {reqs.length > 0 && (
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>
+                      Requires: {reqs.join(", ")}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" }}>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{app.license}</span>
+                    <code style={{ fontSize: 11, color: "var(--accent)" }}>cairn install {app.id}</code>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      <div className="card" style={{ textAlign: "center", padding: 24, color: "var(--text-muted)" }}>
+        <p>Install from CLI:</p>
+        <code style={{ fontSize: 14 }}>cairn install {"<app-name>"}</code>
+      </div>
+    </>
+  );
+}
+
 // ─── App Root ────────────────────────────────────────────
 
 function App() {
@@ -606,7 +715,9 @@ function App() {
 
   return (
     <Layout user={user} navigate={navigate}>
-      {projectMatch ? (
+      {path === "/marketplace" ? (
+        <MarketplacePage navigate={navigate} />
+      ) : projectMatch ? (
         <ProjectDetail projectId={projectMatch[1]!} navigate={navigate} />
       ) : (
         <ProjectList navigate={navigate} />

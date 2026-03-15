@@ -10,6 +10,10 @@ import { logsCommand } from "./commands/logs.ts";
 import { loginCommand } from "./commands/login.ts";
 import { secretCommand } from "./commands/secret.ts";
 import { branchCreateCommand, branchDestroyCommand, branchListCommand } from "./commands/branch.ts";
+import { installCommand, catalogCommand } from "./commands/install.ts";
+import { updateCommand } from "./commands/update.ts";
+import { doctorCommand } from "./commands/doctor.ts";
+import "./adapters/vendors.ts"; // register all vendor adapters
 
 const program = new Command();
 
@@ -18,7 +22,7 @@ program
   .description(
     "The infrastructure app store. One file, every service, any cloud.",
   )
-  .version("0.1.0");
+  .version("0.1.2");
 
 program
   .command("init")
@@ -32,8 +36,8 @@ program
 
 program
   .command("deploy")
-  .description("Deploy to Cloudflare")
-  .option("--target <target>", "Deploy target", "cloudflare")
+  .description("Deploy to Cloudflare, Railway, or Vercel")
+  .option("--target <target>", "Deploy target (cloudflare, railway, vercel)", "cloudflare")
   .action(deployCommand);
 
 program
@@ -71,6 +75,26 @@ program
       .description("List all secrets")
       .action(() => secretCommand("list")),
   );
+
+program
+  .command("install [app]")
+  .description("Install an app from the Cairn App Store")
+  .action(installCommand);
+
+program
+  .command("catalog")
+  .description("Browse the Cairn App Store catalog")
+  .action(catalogCommand);
+
+program
+  .command("update [app]")
+  .description("Check for and apply template updates")
+  .action(updateCommand);
+
+program
+  .command("doctor")
+  .description("Check all vendor connections")
+  .action(doctorCommand);
 
 program
   .command("branch")

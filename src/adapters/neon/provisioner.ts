@@ -3,7 +3,7 @@
  * Create/delete projects and branches via the Neon API
  */
 
-import { neonApi } from "./api.ts";
+import { neonApi, getCredentials } from "./api.ts";
 
 interface CreateProjectResult {
   projectId: string;
@@ -24,15 +24,18 @@ interface CreateBranchResult {
 export async function createNeonProject(
   name: string,
 ): Promise<CreateProjectResult> {
+  const creds = getCredentials();
+  const body: Record<string, unknown> = {
+    project: { name, org_id: creds.orgId },
+    branch: { database_name: name },
+  };
+
   const result = await neonApi<{
     project: { id: string };
     branch: { id: string };
     databases: { name: string }[];
     connection_uris: { connection_uri: string; connection_parameters: { host: string } }[];
-  }>("POST", "/projects", {
-    project: { name },
-    branch: { database_name: name },
-  });
+  }>("POST", "/projects", body);
 
   const uri = result.connection_uris[0];
   if (!uri) throw new Error("Neon API error: no connection URI returned");

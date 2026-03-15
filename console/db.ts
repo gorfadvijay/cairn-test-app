@@ -165,6 +165,37 @@ export const removeTeamMember = db.prepare(
   "DELETE FROM team_members WHERE project_id = ? AND user_id = ?",
 );
 
+// Addons / marketplace queries
+db.exec(`
+  CREATE TABLE IF NOT EXISTS addons (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    app_id TEXT NOT NULL,
+    version TEXT NOT NULL,
+    status TEXT DEFAULT 'installed',
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(project_id, app_id)
+  );
+`);
+
+export const createAddon = db.prepare(
+  "INSERT INTO addons (id, project_id, app_id, version, status) VALUES (?, ?, ?, ?, ?)",
+);
+
+export const getAddonsByProject = db.prepare<
+  { id: string; app_id: string; version: string; status: string; created_at: string },
+  [string]
+>("SELECT * FROM addons WHERE project_id = ? ORDER BY created_at DESC");
+
+export const getAddonByApp = db.prepare<
+  { id: string; app_id: string; version: string },
+  [string, string]
+>("SELECT * FROM addons WHERE project_id = ? AND app_id = ?");
+
+export const deleteAddon = db.prepare(
+  "DELETE FROM addons WHERE project_id = ? AND app_id = ?",
+);
+
 // Branch environment queries
 db.exec(`
   CREATE TABLE IF NOT EXISTS branches (

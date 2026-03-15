@@ -3,9 +3,11 @@ import ora from "ora";
 import { parseCairnHcl } from "../parser/hcl.ts";
 import { deployToCloudflare } from "../adapters/cloudflare/deploy.ts";
 import { deployToRailway } from "../adapters/railway/deploy.ts";
+import { deployToVercel } from "../adapters/vercel/deploy.ts";
 import { loadVendorCredentials } from "../secrets/local.ts";
 import { setCredentials } from "../adapters/cloudflare/api.ts";
 import { setCredentials as setRailwayCredentials } from "../adapters/railway/api.ts";
+import { setCredentials as setVercelCredentials } from "../adapters/vercel/api.ts";
 
 export async function deployCommand(options: { target: string }) {
   const spinner = ora("Reading cairn.hcl...").start();
@@ -52,9 +54,24 @@ export async function deployCommand(options: { target: string }) {
         break;
       }
 
+      case "vercel": {
+        const vCreds = loadVendorCredentials("vercel");
+        if (!vCreds) {
+          spinner.fail(
+            "Not logged in to Vercel. Run: cairn login vercel",
+          );
+          return;
+        }
+        setVercelCredentials(vCreds as { apiToken: string });
+
+        console.log(chalk.bold(`\n⛰  Deploying to Vercel\n`));
+        await deployToVercel(config);
+        break;
+      }
+
       default:
         spinner.fail(
-          `Unknown target: ${options.target}. Available: cloudflare, railway`,
+          `Unknown target: ${options.target}. Available: cloudflare, railway, vercel`,
         );
     }
   } catch (e: unknown) {

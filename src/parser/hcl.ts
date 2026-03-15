@@ -1,5 +1,15 @@
 import { readFileSync } from "fs";
-import type { CairnConfig, PostgresConfig, RedisConfig } from "./types.ts";
+import type {
+  CairnConfig,
+  PostgresConfig,
+  RedisConfig,
+  JobsConfig,
+  EmailConfig,
+  AnalyticsConfig,
+  SqliteConfig,
+  MonitoringConfig,
+  LoggingConfig,
+} from "./types.ts";
 
 /**
  * Simple HCL parser for cairn.hcl
@@ -238,6 +248,12 @@ function blocksToConfig(blocks: Block[]): CairnConfig {
     storage: [],
     secrets: [],
     auth: [],
+    jobs: [],
+    email: [],
+    analytics: [],
+    sqlite: [],
+    monitoring: [],
+    logging: [],
   };
 
   for (const block of blocks) {
@@ -256,7 +272,9 @@ function blocksToConfig(blocks: Block[]): CairnConfig {
         config.services.push({
           name: block.name,
           build: block.attrs.build as string | undefined,
-          command: block.attrs.command as string,
+          command: (block.attrs.command as string) || "",
+          image: block.attrs.image as string | undefined,
+          port: block.attrs.port as number | undefined,
           expose: block.attrs.expose as boolean | undefined,
           dev: devBlock
             ? { command: devBlock.attrs.command as string }
@@ -304,6 +322,48 @@ function blocksToConfig(blocks: Block[]): CairnConfig {
         });
         break;
       }
+
+      case "jobs":
+        config.jobs.push({
+          name: block.name,
+          vendor: block.attrs.vendor as JobsConfig["vendor"],
+        });
+        break;
+
+      case "email":
+        config.email.push({
+          name: block.name,
+          vendor: block.attrs.vendor as EmailConfig["vendor"],
+        });
+        break;
+
+      case "analytics":
+        config.analytics.push({
+          name: block.name,
+          vendor: block.attrs.vendor as AnalyticsConfig["vendor"],
+        });
+        break;
+
+      case "sqlite":
+        config.sqlite.push({
+          name: block.name,
+          vendor: block.attrs.vendor as SqliteConfig["vendor"],
+        });
+        break;
+
+      case "monitoring":
+        config.monitoring.push({
+          name: block.name,
+          vendor: block.attrs.vendor as MonitoringConfig["vendor"],
+        });
+        break;
+
+      case "logging":
+        config.logging.push({
+          name: block.name,
+          vendor: block.attrs.vendor as LoggingConfig["vendor"],
+        });
+        break;
     }
   }
 
