@@ -80,6 +80,8 @@ const server = Bun.serve({
     "/projects/*": index,
     "/billing": index,
     "/marketplace": index,
+    "/health": () => Response.json({ status: "ok", uptime: process.uptime() }),
+    "/api/health": () => Response.json({ status: "ok", uptime: process.uptime() }),
   },
   async fetch(req) {
     const url = new URL(req.url);
