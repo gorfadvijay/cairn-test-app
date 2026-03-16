@@ -14,6 +14,7 @@ import {
 
 const COOKIE_NAME = "cairn_session";
 const SESSION_TTL_DAYS = 30;
+const isProd = process.env.NODE_ENV === "production";
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -34,16 +35,18 @@ function sessionExpiry(): string {
 }
 
 function setSessionCookie(headers: Headers, sessionId: string) {
+  const secure = isProd ? "; Secure" : "";
   headers.set(
     "Set-Cookie",
-    `${COOKIE_NAME}=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL_DAYS * 86400}`,
+    `${COOKIE_NAME}=${sessionId}; Path=/; HttpOnly; SameSite=Lax${secure}; Max-Age=${SESSION_TTL_DAYS * 86400}`,
   );
 }
 
 function clearSessionCookie(headers: Headers) {
+  const secure = isProd ? "; Secure" : "";
   headers.set(
     "Set-Cookie",
-    `${COOKIE_NAME}=; Path=/; HttpOnly; Max-Age=0`,
+    `${COOKIE_NAME}=; Path=/; HttpOnly${secure}; Max-Age=0`,
   );
 }
 

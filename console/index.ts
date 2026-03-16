@@ -30,6 +30,24 @@ import { getBilling, createCheckout, handleWebhook } from "./billing.ts";
 
 const PORT = process.env.PORT || 3100;
 const isDev = process.env.NODE_ENV !== "production";
+const ALLOWED_ORIGINS = process.env.CONSOLE_URL
+  ? [process.env.CONSOLE_URL]
+  : ["http://localhost:3100"];
+
+/** Add CORS and security headers to response */
+function withHeaders(res: Response, req: Request): Response {
+  const origin = req.headers.get("Origin") || "";
+  if (ALLOWED_ORIGINS.includes(origin) || isDev) {
+    res.headers.set("Access-Control-Allow-Origin", origin || "*");
+    res.headers.set("Access-Control-Allow-Credentials", "true");
+  }
+  if (!isDev) {
+    res.headers.set("X-Content-Type-Options", "nosniff");
+    res.headers.set("X-Frame-Options", "DENY");
+    res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  }
+  return res;
+}
 
 /** Extract path params from URL pattern matching */
 function matchRoute(
@@ -68,95 +86,114 @@ const server = Bun.serve({
     const { pathname } = url;
     const method = req.method;
 
+    // ─── CORS preflight ──────────────────────
+    if (method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": req.headers.get("Origin") || "*",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Max-Age": "86400",
+        },
+      });
+    }
+
+    // ─── Health check (for Railway/deploy targets) ───
+    if (pathname === "/health" || pathname === "/api/health") {
+      return Response.json({ status: "ok", uptime: process.uptime() });
+    }
+
     // ─── Auth API ──────────────────────────
-    if (pathname === "/api/auth/signup" && method === "POST") return handleSignup(req);
-    if (pathname === "/api/auth/login" && method === "POST") return handleLogin(req);
-    if (pathname === "/api/auth/logout" && method === "POST") return handleLogout(req);
-    if (pathname === "/api/auth/me" && method === "GET") return handleMe(req);
+    if (pathname === "/api/auth/signup" && method === "POST") return withHeaders(await handleSignup(req), req);
+    if (pathname === "/api/auth/login" && method === "POST") return withHeaders(await handleLogin(req), req);
+    if (pathname === "/api/auth/logout" && method === "POST") return withHeaders(handleLogout(req), req);
+    if (pathname === "/api/auth/me" && method === "GET") return withHeaders(handleMe(req), req);
 
     // ─── Projects API ──────────────────────
-    if (pathname === "/api/projects" && method === "GET") return listProjects(req);
-    if (pathname === "/api/projects" && method === "POST") return createProject(req);
+    if (pathname === "/api/projects" && method === "GET") return withHeaders(listProjects(req), req);
+    if (pathname === "/api/projects" && method === "POST") return withHeaders(await createProject(req), req);
 
     // Project-specific routes
     let params = matchRoute(pathname, "/api/projects/:id");
     if (params) {
-      if (method === "GET") return getProject(req, params.id!);
-      if (method === "DELETE") return deleteProjectHandler(req, params.id!);
+      if (method === "GET") return withHeaders(getProject(req, params.id!), req);
+      if (method === "DELETE") return withHeaders(deleteProjectHandler(req, params.id!), req);
     }
 
     params = matchRoute(pathname, "/api/projects/:id/state");
-    if (params && method === "PUT") return syncState(req, params.id!);
+    if (params && method === "PUT") return withHeaders(await syncState(req, params.id!), req);
 
     params = matchRoute(pathname, "/api/projects/:id/deploy");
-    if (params && method === "POST") return triggerDeploy(req, params.id!);
+    if (params && method === "POST") return withHeaders(await triggerDeploy(req, params.id!), req);
 
     params = matchRoute(pathname, "/api/projects/:id/deployments");
-    if (params && method === "GET") return listDeployments(req, params.id!);
+    if (params && method === "GET") return withHeaders(listDeployments(req, params.id!), req);
 
     params = matchRoute(pathname, "/api/projects/:id/resources");
-    if (params && method === "GET") return listResources(req, params.id!);
+    if (params && method === "GET") return withHeaders(listResources(req, params.id!), req);
 
     // Secrets
     params = matchRoute(pathname, "/api/projects/:id/secrets");
     if (params) {
-      if (method === "GET") return listSecrets(req, params.id!);
-      if (method === "POST") return setSecretHandler(req, params.id!);
+      if (method === "GET") return withHeaders(listSecrets(req, params.id!), req);
+      if (method === "POST") return withHeaders(await setSecretHandler(req, params.id!), req);
     }
 
     params = matchRoute(pathname, "/api/projects/:id/secrets/:key");
     if (params && method === "DELETE") {
-      return deleteSecretHandler(req, params.id!, params.key!);
+      return withHeaders(deleteSecretHandler(req, params.id!, params.key!), req);
     }
 
     // Branches
     params = matchRoute(pathname, "/api/projects/:id/branches");
     if (params) {
-      if (method === "GET") return listBranches(req, params.id!);
-      if (method === "POST") return createBranchHandler(req, params.id!);
+      if (method === "GET") return withHeaders(listBranches(req, params.id!), req);
+      if (method === "POST") return withHeaders(await createBranchHandler(req, params.id!), req);
     }
 
     params = matchRoute(pathname, "/api/projects/:id/branches/:name");
     if (params) {
-      if (method === "PUT") return updateBranchHandler(req, params.id!, params.name!);
-      if (method === "DELETE") return deleteBranchHandler(req, params.id!, params.name!);
+      if (method === "PUT") return withHeaders(await updateBranchHandler(req, params.id!, params.name!), req);
+      if (method === "DELETE") return withHeaders(deleteBranchHandler(req, params.id!, params.name!), req);
     }
 
     // Team
     params = matchRoute(pathname, "/api/projects/:id/team");
     if (params) {
-      if (method === "GET") return listTeam(req, params.id!);
-      if (method === "POST") return addTeamMemberHandler(req, params.id!);
+      if (method === "GET") return withHeaders(listTeam(req, params.id!), req);
+      if (method === "POST") return withHeaders(await addTeamMemberHandler(req, params.id!), req);
     }
 
     // Metrics
     params = matchRoute(pathname, "/api/projects/:id/metrics");
-    if (params && method === "GET") return getMetrics(req, params.id!);
+    if (params && method === "GET") return withHeaders(await getMetrics(req, params.id!), req);
 
     // Marketplace
-    if (pathname === "/api/marketplace" && method === "GET") return getMarketplace(req);
+    if (pathname === "/api/marketplace" && method === "GET") return withHeaders(getMarketplace(req), req);
 
     params = matchRoute(pathname, "/api/marketplace/:id");
-    if (params && method === "GET") return getMarketplaceApp(req, params.id!);
+    if (params && method === "GET") return withHeaders(getMarketplaceApp(req, params.id!), req);
 
     // Addons (installed apps per project)
     params = matchRoute(pathname, "/api/projects/:id/addons");
     if (params) {
-      if (method === "GET") return listAddons(req, params.id!);
-      if (method === "POST") return installAddon(req, params.id!);
+      if (method === "GET") return withHeaders(listAddons(req, params.id!), req);
+      if (method === "POST") return withHeaders(await installAddon(req, params.id!), req);
     }
 
     params = matchRoute(pathname, "/api/projects/:id/addons/:appId");
-    if (params && method === "DELETE") return removeAddon(req, params.id!, params.appId!);
+    if (params && method === "DELETE") return withHeaders(removeAddon(req, params.id!, params.appId!), req);
 
     // Billing
-    if (pathname === "/api/billing" && method === "GET") return getBilling(req);
-    if (pathname === "/api/billing/checkout" && method === "POST") return createCheckout(req);
-    if (pathname === "/api/billing/webhook" && method === "POST") return handleWebhook(req);
+    if (pathname === "/api/billing" && method === "GET") return withHeaders(getBilling(req), req);
+    if (pathname === "/api/billing/checkout" && method === "POST") return withHeaders(await createCheckout(req), req);
+    if (pathname === "/api/billing/webhook" && method === "POST") return withHeaders(await handleWebhook(req), req);
 
     return new Response("Not Found", { status: 404 });
   },
   ...(isDev ? { development: { hmr: true, console: true } } : {}),
 });
 
-console.log(`⛰  Cairn Console running at http://localhost:${server.port}`);
+console.log(`⛰  Cairn Console running at http://localhost:${server.port} [${isDev ? "dev" : "production"}]`);

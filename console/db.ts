@@ -1,18 +1,21 @@
 /**
  * Console database layer
- * Uses bun:sqlite for local dev, designed to swap to Postgres (Bun.sql) for prod
+ * Uses bun:sqlite — works for both dev and production (with persistent volume)
+ * DATA_DIR env var controls where the DB lives (default: .data/ locally, /data in production)
  */
 
 import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
 
-const DATA_DIR = resolve(import.meta.dir, ".data");
+const isProd = process.env.NODE_ENV === "production";
+const DATA_DIR = process.env.DATA_DIR || (isProd ? "/data" : resolve(import.meta.dir, ".data"));
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 
 const db = new Database(resolve(DATA_DIR, "console.db"));
 db.exec("PRAGMA journal_mode = WAL");
 db.exec("PRAGMA foreign_keys = ON");
+db.exec("PRAGMA busy_timeout = 5000");
 
 // Schema
 db.exec(`

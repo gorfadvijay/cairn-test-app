@@ -60,12 +60,13 @@ export function ensureGitHubRepo(projectName: string): { repo: string; branch: s
       console.log("  Creating GitHub repo...");
       run(`gh repo create ${repoName} --public --source=. --push`);
     } catch {
-      // Repo may already exist — just add remote and push
+      // Repo may already exist — use HTTPS URL (works with gh auth setup-git)
       console.log("  Connecting to existing GitHub repo...");
+      const httpsUrl = `https://github.com/${ghUser}/${repoName}.git`;
       try {
-        run(`git remote add origin git@github.com:${ghUser}/${repoName}.git`);
+        run(`git remote add origin ${httpsUrl}`);
       } catch {
-        run(`git remote set-url origin git@github.com:${ghUser}/${repoName}.git`);
+        run(`git remote set-url origin ${httpsUrl}`);
       }
       run(`git push -u origin ${branch} --force`);
     }

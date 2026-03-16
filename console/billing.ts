@@ -179,11 +179,9 @@ export async function handleWebhook(req: Request): Promise<Response> {
     case "customer.subscription.deleted": {
       const sub = event.data.object;
       const status = sub.status === "active" ? "active" : "canceled";
-      // Find user by stripe_customer_id and update
-      db.exec(
-        `UPDATE subscriptions SET status = '${status}', updated_at = datetime('now')
-         WHERE stripe_customer_id = '${sub.customer}'`,
-      );
+      db.prepare(
+        "UPDATE subscriptions SET status = ?, updated_at = datetime('now') WHERE stripe_customer_id = ?",
+      ).run(status, sub.customer);
       break;
     }
   }

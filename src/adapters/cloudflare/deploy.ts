@@ -34,7 +34,42 @@ import { provisionVendorResources } from "../vendor-provisioning.ts";
  * Bundle a user's entrypoint into a single ESM file for Workers
  * Uses Bun.build() so imports, TypeScript, etc. all resolve correctly
  */
-async function bundleForWorker(entryPoint: string): Promise<string> {
+/**
+ * Shim that makes Bun.serve() code work inside Cloudflare Workers.
+ * Captures the fetch handler from Bun.serve({ fetch }) and exports it
+ * as the Worker's default fetch handler. Also injects env bindings into
+ * process.env so user code like `process.env.DATABASE_URL` works.
+ */
+const WORKER_SHIM = `
+// Cairn Worker shim — bridges Bun.serve() to Cloudflare Workers
+let __cairn_fetch_handler = null;
+const Bun = {
+  serve(opts) {
+    __cairn_fetch_handler = opts.fetch;
+    return { port: 0, stop() {} };
+  }
+};
+globalThis.Bun = Bun;
+globalThis.process = globalThis.process || { env: {} };
+`;
+
+const WORKER_EXPORT = `
+// Export the captured fetch handler as Worker default
+export default {
+  async fetch(request, env, ctx) {
+    // Inject env bindings into process.env so user code works
+    for (const [k, v] of Object.entries(env)) {
+      if (typeof v === "string") globalThis.process.env[k] = v;
+    }
+    if (__cairn_fetch_handler) {
+      return __cairn_fetch_handler(request);
+    }
+    return new Response("No fetch handler found", { status: 500 });
+  }
+};
+`;
+
+export async function bundleForWorker(entryPoint: string): Promise<string> {
   const absPath = resolve(process.cwd(), entryPoint);
 
   if (!existsSync(absPath)) {
@@ -66,7 +101,18 @@ async function bundleForWorker(entryPoint: string): Promise<string> {
     throw new Error("Bundle produced no output");
   }
 
-  return await output.text();
+  let code = await output.text();
+
+  // Check if bundled code already exports a default fetch handler (Worker-native)
+  if (code.includes("export default") && !code.includes("Bun.serve")) {
+    return code;
+  }
+
+  // Wrap Bun.serve() code with the Worker shim
+  // Strip any existing export default that Bun.build might have added
+  code = code.replace(/export\s+default\s+\{[^}]*\};?\s*$/, "");
+
+  return WORKER_SHIM + code + WORKER_EXPORT;
 }
 
 export async function deployToCloudflare(config: CairnConfig): Promise<void> {

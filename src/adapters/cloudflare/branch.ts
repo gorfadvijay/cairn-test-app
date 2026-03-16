@@ -17,40 +17,9 @@ import { setCredentials as setUpstashCredentials } from "../upstash/api.ts";
 import { createUpstashRedis, getUpstashRedisUrl } from "../upstash/provisioner.ts";
 
 /**
- * Bundle user code for Workers (reuse from main deploy)
+ * Bundle user code for Workers — reuses the bundleForWorker from main deploy
  */
-async function bundleForWorker(entryPoint: string): Promise<string> {
-  const { resolve } = await import("path");
-  const { existsSync } = await import("fs");
-  const absPath = resolve(process.cwd(), entryPoint);
-
-  if (!existsSync(absPath)) {
-    return `export default {
-  async fetch(request, env, ctx) {
-    return new Response("Branch preview — deploy your app code to see it here.", {
-      headers: { "Content-Type": "text/plain" },
-    });
-  }
-};`;
-  }
-
-  const result = await Bun.build({
-    entrypoints: [absPath],
-    target: "browser",
-    format: "esm",
-    bundle: true,
-    minify: false,
-  });
-
-  if (!result.success) {
-    const messages = result.logs.map((l) => l.message).join("\n");
-    throw new Error(`Bundle failed:\n${messages}`);
-  }
-
-  const output = result.outputs[0];
-  if (!output) throw new Error("Bundle produced no output");
-  return await output.text();
-}
+import { bundleForWorker } from "./deploy.ts";
 
 /** Sanitize branch name for use in resource names */
 function sanitizeBranchName(branch: string): string {

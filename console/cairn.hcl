@@ -9,4 +9,12 @@ service "console" {
   dev {
     command = "bun --hot index.ts"
   }
+  env {
+    NODE_ENV    = "production"
+    CONSOLE_URL = "https://console.cairn.dev"
+  }
+}
+
+storage "data" {
+  mount = "/data"
 }
