@@ -195,7 +195,7 @@ const server = Bun.serve({
 
     return new Response("Not Found", { status: 404 });
   },
-  ...(isDev ? { development: { hmr: true, console: true } } : {}),
+  development: isDev ? { hmr: true, console: true } : false,
 });
 
 console.log(`⛰  Cairn Console running at http://localhost:${server.port} [${isDev ? "dev" : "production"}]`);
