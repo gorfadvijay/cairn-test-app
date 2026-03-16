@@ -199,3 +199,4 @@ const server = Bun.serve({
 });
 
 console.log(`⛰  Cairn Console running at http://localhost:${server.port} [${isDev ? "dev" : "production"}]`);
+// health check fix 1773643275
